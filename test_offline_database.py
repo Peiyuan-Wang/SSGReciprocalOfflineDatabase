@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""Consistency tests for the standalone database and its read layer."""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+import sqlite3
+import unittest
+from pathlib import Path
+
+
+HERE = Path(__file__).resolve().parent
+CATALOG = HERE.parent
+DATA = CATALOG / "SSGReciprocalDatabase" / "Data"
+DATABASES = sorted((HERE / "dist").glob("SSGReciprocalOffline-*.sqlite"))
+
+spec = importlib.util.spec_from_file_location("ssg_database_gui", HERE / "ssg_database_gui.py")
+module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(module)
+SSGDatabase = module.SSGDatabase
+
+
+class OfflineDatabaseTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        if not DATABASES:
+            raise unittest.SkipTest("Build the offline database before running tests")
+        cls.path = DATABASES[-1]
+        cls.database = SSGDatabase(cls.path)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.database.close()
+
+    def test_integrity_and_counts(self) -> None:
+        result = self.database.verify()
+        self.assertEqual(result["Integrity"], "ok")
+        self.assertEqual(result["SSGRecords"], 67475)
+        self.assertEqual(result["O3Records"], 67475)
+
+    def test_records_are_exact_source_copies(self) -> None:
+        samples = ("L1.1.1", "N6.9.19", "N143.10.1", "N143.16.1")
+        source_cache = {}
+        o3_cache = {}
+        for label in samples:
+            parent = int(label.split(".", 1)[0][1:])
+            if parent not in source_cache:
+                with (DATA / "Reciprocal" / f"sg{parent:03d}.json").open(
+                    encoding="utf-8"
+                ) as stream:
+                    source_cache[parent] = json.load(stream)["Records"]
+                with (DATA / "O3" / f"sg{parent:03d}.json").open(
+                    encoding="utf-8"
+                ) as stream:
+                    o3_cache[parent] = json.load(stream)["XiaoRecords"]
+            stored = self.database.get_ssg(label)
+            self.assertIsNotNone(stored)
+            self.assertEqual(stored["ReciprocalRecord"], source_cache[parent][label])
+            self.assertEqual(stored["O3Record"], o3_cache[parent][label])
+
+    def test_search_and_reverse_lookup(self) -> None:
+        rows = self.database.search_ssg("N143.10.1")
+        self.assertTrue(rows)
+        self.assertEqual(rows[0]["label"], "N143.10.1")
+        bns = rows[0]["bns_number"]
+        reverse = self.database.lookup_bns(bns)
+        labels = {row["label"] for row in reverse["Labels"]}
+        self.assertIn("N143.10.1", labels)
+        self.assertEqual(reverse["Summary"]["ssg_count"], len(labels))
+
+    def test_connection_is_query_only(self) -> None:
+        with self.assertRaises(sqlite3.OperationalError):
+            self.database.connection.execute("DELETE FROM metadata")
+
+
+if __name__ == "__main__":
+    unittest.main()
