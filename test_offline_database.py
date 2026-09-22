@@ -41,6 +41,8 @@ class OfflineDatabaseTest(unittest.TestCase):
         self.assertEqual(result["O3Records"], 67475)
 
     def test_records_are_exact_source_copies(self) -> None:
+        if not DATA.is_dir():
+            self.skipTest("Source catalog is not available in this standalone checkout")
         samples = ("L1.1.1", "N6.9.19", "N143.10.1", "N143.16.1")
         source_cache = {}
         o3_cache = {}

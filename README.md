@@ -7,10 +7,12 @@ results.
 
 ## Downloaded release
 
-Each release contains two principal assets:
+Each release contains these principal assets:
 
 1. `SSGReciprocalOffline-<version>.sqlite`: the database.
 2. `SSGReciprocalDatabase-macOS-arm64-<version>.zip`: the self-contained GUI.
+3. `SSGReciprocalDatabase-Windows-<architecture>-<version>.zip`: the
+   self-contained Windows GUI.
 
 Unzip the application and keep the `.app` and `.sqlite` in the same folder.
 Double-click the application to search the database. The application also
@@ -21,6 +23,11 @@ Anaconda, Mathematica, Python, a network connection, or a website. Version
 0.1.0 targets Apple Silicon Macs. The application is ad-hoc signed but not
 Apple-notarized; on first launch, macOS may require Control-clicking the app and
 choosing **Open**.
+
+On Windows, extract the complete Windows ZIP and double-click
+`SSGReciprocalDatabase.exe`. Keep the executable, the `_internal` folder, and
+the `.sqlite` file together. Python, Mathematica, Anaconda, and network access
+are not required.
 
 Verify downloads from the release directory with:
 
@@ -85,6 +92,19 @@ The release archive is written to `release/`. The application automatically
 opens a database placed beside the `.app`; otherwise it presents a local file
 chooser.
 
+For a self-contained Windows release, use a 64-bit Python with Tcl/Tk 8.6 or
+newer and install PyInstaller into an isolated build environment:
+
+```powershell
+py -3.12 -m venv .build-venv
+.build-venv\Scripts\python.exe -m pip install pyinstaller
+.build-venv\Scripts\python.exe build_standalone_windows.py --clean
+```
+
+The Windows ZIP and its SHA-256 checksum are written to `release/`. The SQLite
+database is included in the ZIP beside the executable, so the extracted folder
+works entirely offline on a machine without Python.
+
 If the database is stored elsewhere:
 
 ```bash
@@ -116,12 +136,12 @@ python3 -m unittest -v test_offline_database.py
 
 ## Runtime requirements
 
-The current reader uses only Python's standard library: `sqlite3`, `zlib`,
+The reader uses only Python's standard library: `sqlite3`, `zlib`,
 `json`, and `tkinter`. The source launcher requires Tcl/Tk 8.6 or newer; the
 obsolete Tk 8.5 bundled with macOS system Python does not render reliably on
-current macOS releases. No Mathematica installation and no network connection
-are required. The next packaging step can wrap the reader with a current Tk as
-a macOS `.app` and Windows executable so end users do not need Python.
+current macOS releases. No Mathematica installation or network connection is
+required. The release builders package the reader with a current Python and Tk
+runtime, so end users do not need Python.
 
 ## Compatibility boundary
 

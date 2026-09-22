@@ -16,6 +16,20 @@ EXPECTED_APPLICATION_ID = 0x53534752
 EXPECTED_SCHEMA_VERSION = 1
 
 
+def configure_windows_dpi() -> None:
+    """Opt into native per-monitor scaling before Tk creates any windows."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        # -4 is DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2.
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+    except (AttributeError, OSError):
+        # Older Windows versions or restricted hosts can still use Tk's default.
+        pass
+
+
 def unpack_json(payload: bytes | None) -> Any:
     if payload is None:
         return None
@@ -161,16 +175,31 @@ class SSGDatabase:
 
 def default_database_path() -> Optional[Path]:
     directory = Path(__file__).resolve().parent
-    candidates = sorted((directory / "dist").glob("SSGReciprocalOffline-*.sqlite"))
-    candidates += sorted(directory.glob("SSGReciprocalOffline-*.sqlite"))
-    if directory.name == "Resources" and directory.parent.name == "Contents":
-        app_parent = directory.parents[2]
-        candidates += sorted(app_parent.glob("SSGReciprocalOffline-*.sqlite"))
+    search_directories: List[Path] = []
+
+    # A frozen application keeps the database beside its executable. PyInstaller
+    # places __file__ in its internal bundle directory, so it cannot be the only
+    # location checked on Windows.
     executable = Path(sys.executable).resolve()
-    if executable.parent.name == "MacOS" and executable.parent.parent.name == "Contents":
-        app_parent = executable.parents[3]
-        candidates += sorted(app_parent.glob("SSGReciprocalOffline-*.sqlite"))
-    return candidates[-1] if candidates else None
+    if getattr(sys, "frozen", False):
+        if executable.parent.name == "MacOS" and executable.parent.parent.name == "Contents":
+            search_directories.append(executable.parents[3])
+        else:
+            search_directories.append(executable.parent)
+    if directory.name == "Resources" and directory.parent.name == "Contents":
+        search_directories.append(directory.parents[2])
+    search_directories.extend((directory / "dist", directory))
+
+    seen = set()
+    for candidate_directory in search_directories:
+        resolved = candidate_directory.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        candidates = sorted(resolved.glob("SSGReciprocalOffline-*.sqlite"))
+        if candidates:
+            return candidates[-1]
+    return None
 
 
 def choose_database_path() -> Optional[Path]:
@@ -205,11 +234,11 @@ class SSGDatabaseGUI:
         import tkinter as tk
         from tkinter import ttk
 
+        configure_windows_dpi()
         if tk.TkVersion < 8.6:
             raise RuntimeError(
                 "The desktop GUI requires Tcl/Tk 8.6 or newer. "
-                "The macOS system Python ships an obsolete Tk 8.5; use the "
-                "packaged application or a current Python distribution."
+                "Use the packaged application or a current Python distribution."
             )
 
         self.tk = tk
@@ -301,7 +330,7 @@ class SSGDatabaseGUI:
     def _text_tab(self, title: str) -> Any:
         frame = self.ttk.Frame(self.detail_tabs)
         self.detail_tabs.add(frame, text=title)
-        text = self.tk.Text(frame, wrap="none", font=("Menlo", 11), padx=10, pady=10)
+        text = self.tk.Text(frame, wrap="none", font="TkFixedFont", padx=10, pady=10)
         y_scroll = self.ttk.Scrollbar(frame, orient="vertical", command=text.yview)
         x_scroll = self.ttk.Scrollbar(frame, orient="horizontal", command=text.xview)
         text.configure(yscrollcommand=y_scroll.set, xscrollcommand=x_scroll.set)
@@ -403,7 +432,7 @@ class SSGDatabaseGUI:
         entry.bind("<Return>", lambda _event: self.search_bns())
         ttk.Button(search, text="Find SSG realizations", command=self.search_bns).pack(side="left")
 
-        self.msg_summary = self.tk.Text(pane, height=8, wrap="word", font=("Menlo", 11))
+        self.msg_summary = self.tk.Text(pane, height=8, wrap="word", font="TkFixedFont")
         self.msg_summary.pack(fill="x", pady=(0, 8))
         self.msg_summary.configure(state="disabled")
         columns = ("label", "example", "parent", "order", "nsg")
@@ -463,7 +492,7 @@ class SSGDatabaseGUI:
             **self.database.metadata(),
             **self.database.verify(),
         }
-        text = self.tk.Text(pane, wrap="word", font=("Menlo", 11), padx=10, pady=10)
+        text = self.tk.Text(pane, wrap="word", font="TkFixedFont", padx=10, pady=10)
         text.insert("1.0", "\n".join(f"{key}: {compact(value)}" for key, value in info.items()))
         text.configure(state="disabled")
         text.pack(fill="both", expand=True)
