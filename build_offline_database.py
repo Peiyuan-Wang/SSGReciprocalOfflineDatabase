@@ -21,8 +21,8 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, Tuple
 
 
-SCHEMA_VERSION = 1
-DATABASE_VERSION = "0.1.1"
+SCHEMA_VERSION = 2
+DATABASE_VERSION = "0.1.2"
 APPLICATION_ID = 0x53534752  # "SSGR"
 
 
@@ -104,6 +104,11 @@ def create_schema(connection: sqlite3.Connection) -> None:
             parent_space_group INTEGER NOT NULL,
             record_zlib BLOB NOT NULL
         ) WITHOUT ROWID;
+
+        CREATE TABLE point_operation_names (
+            record_id INTEGER PRIMARY KEY CHECK (record_id = 1),
+            record_zlib BLOB NOT NULL
+        );
 
         CREATE TABLE ssg_records (
             label TEXT PRIMARY KEY,
@@ -190,6 +195,15 @@ def insert_classes(
             )
             for key, record in magnetic_data["Classes"].items()
         ),
+    )
+
+
+def insert_point_operation_names(
+    connection: sqlite3.Connection, data: Dict[str, Any]
+) -> None:
+    connection.execute(
+        "INSERT INTO point_operation_names VALUES (1, ?)",
+        (pack_json(data),),
     )
 
 
@@ -340,6 +354,7 @@ def source_paths(data_root: Path) -> Iterable[Path]:
         "SpaceGroupIdentification.json",
         "MagneticSpaceGroupIdentification.json",
         "MagneticSpaceGroupRealizations.json",
+        "SpaceGroupIrepRotationNames.json",
     ):
         yield data_root / name
 
@@ -357,6 +372,7 @@ def build_database(data_root: Path, output: Path, force: bool = False) -> None:
     ordinary_data = load_json(ordinary_path)
     magnetic_data = load_json(magnetic_path)
     realization_data = load_json(realizations_path)
+    point_operation_names = load_json(data_root / "SpaceGroupIrepRotationNames.json")
 
     ordinary_labels = set(ordinary_data["Labels"])
     magnetic_labels = set(magnetic_data["Labels"])
@@ -371,6 +387,7 @@ def build_database(data_root: Path, output: Path, force: bool = False) -> None:
         try:
             create_schema(connection)
             insert_classes(connection, ordinary_data, magnetic_data)
+            insert_point_operation_names(connection, point_operation_names)
             count, stored_labels = insert_ssg_records(
                 connection, data_root, ordinary_data, magnetic_data
             )

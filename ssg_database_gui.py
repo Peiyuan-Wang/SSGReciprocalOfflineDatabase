@@ -8,12 +8,14 @@ import json
 import sqlite3
 import sys
 import zlib
+from fractions import Fraction
+from math import gcd
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 
 EXPECTED_APPLICATION_ID = 0x53534752
-EXPECTED_SCHEMA_VERSION = 1
+EXPECTED_SCHEMA_VERSION = 2
 
 
 def configure_windows_dpi() -> None:
@@ -68,6 +70,173 @@ def column_vector(value: Any) -> List[List[Any]]:
 
 def identity_matrix(size: int = 3) -> List[List[int]]:
     return [[int(row == column) for column in range(size)] for row in range(size)]
+
+
+def matrix_key(matrix: Any) -> str:
+    if matrix in ("E", "I"):
+        matrix = identity_matrix()
+    return json.dumps(matrix, sort_keys=True, separators=(",", ":"))
+
+
+def determinant_3(matrix: List[List[Any]]) -> Fraction:
+    a = [[Fraction(value) for value in row] for row in matrix]
+    return (
+        a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1])
+        - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0])
+        + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0])
+    )
+
+
+def inverse_transpose_3(matrix: List[List[Any]]) -> List[List[Any]]:
+    a = [[Fraction(value) for value in row] for row in matrix]
+    determinant = determinant_3(matrix)
+    if determinant == 0:
+        raise ValueError("Point-operation matrix is singular")
+    cofactors = [
+        [
+            (-1) ** (row + column)
+            * (
+                a[(row + 1) % 3][(column + 1) % 3]
+                * a[(row + 2) % 3][(column + 2) % 3]
+                - a[(row + 1) % 3][(column + 2) % 3]
+                * a[(row + 2) % 3][(column + 1) % 3]
+            )
+            for column in range(3)
+        ]
+        for row in range(3)
+    ]
+    result = []
+    for row in cofactors:
+        converted = []
+        for value in row:
+            value /= determinant
+            converted.append(int(value) if value.denominator == 1 else str(value))
+        result.append(converted)
+    return result
+
+
+def matrix_product(left: List[List[int]], right: List[List[int]]) -> List[List[int]]:
+    return [
+        [sum(left[row][inner] * right[inner][column] for inner in range(3)) for column in range(3)]
+        for row in range(3)
+    ]
+
+
+def matrix_order(matrix: List[List[int]], maximum: int = 12) -> Optional[int]:
+    product = identity_matrix()
+    for order in range(1, maximum + 1):
+        product = matrix_product(product, matrix)
+        if product == identity_matrix():
+            return order
+    return None
+
+
+def primitive_null_vector(matrix: List[List[int]], eigenvalue: int) -> Optional[List[int]]:
+    shifted = [
+        [matrix[row][column] - eigenvalue * int(row == column) for column in range(3)]
+        for row in range(3)
+    ]
+    candidates = []
+    for x in range(-3, 4):
+        for y in range(-3, 4):
+            for z in range(-3, 4):
+                vector = [x, y, z]
+                if vector == [0, 0, 0]:
+                    continue
+                if all(sum(row[index] * vector[index] for index in range(3)) == 0 for row in shifted):
+                    divisor = gcd(gcd(abs(x), abs(y)), abs(z)) or 1
+                    vector = [value // divisor for value in vector]
+                    first = next(value for value in vector if value)
+                    if first < 0:
+                        vector = [-value for value in vector]
+                    candidates.append(vector)
+    if not candidates:
+        return None
+    return min({tuple(vector) for vector in candidates}, key=lambda vector: (sum(abs(x) for x in vector), vector))
+
+
+def axis_label(vector: Optional[List[int]]) -> str:
+    labels = {(1, 0, 0): "x", (0, 1, 0): "y", (0, 0, 1): "z"}
+    if vector is None:
+        return ""
+    key = tuple(vector)
+    return labels.get(key, "[" + " ".join(str(value) for value in vector) + "]")
+
+
+def normalize_operation_name(name: str) -> str:
+    if name.startswith("σ"):
+        return "Σ_" + name[1:]
+    return name
+
+
+def infer_operation_name(matrix: List[List[int]]) -> str:
+    if matrix == identity_matrix():
+        return "E"
+    if matrix == [[-1, 0, 0], [0, -1, 0], [0, 0, -1]]:
+        return "I"
+    determinant = int(determinant_3(matrix))
+    order = matrix_order(matrix)
+    if determinant == 1:
+        return f"C{order or '?'}{axis_label(primitive_null_vector(matrix, 1))}"
+    if order == 2:
+        return "Σ_" + axis_label(primitive_null_vector(matrix, -1))
+    return f"S{order or '?'}{axis_label(primitive_null_vector(matrix, -1))}"
+
+
+def point_operation_name(
+    matrix: List[List[int]], space_group: Any, naming_data: Optional[Dict[str, Any]]
+) -> str:
+    if naming_data:
+        bravais = naming_data.get("SpaceGroupBravais", {}).get(str(space_group))
+        for entry in naming_data.get("Rotations", {}).get(bravais, []):
+            if entry.get("Matrix") == matrix:
+                return normalize_operation_name(entry.get("Name", ""))
+    return infer_operation_name(matrix)
+
+
+def spatial_matrix_from_momentum(linear: List[List[int]], grading: int) -> List[List[int]]:
+    return inverse_transpose_3([[grading * value for value in row] for row in linear])
+
+
+def magnetic_operation_name(
+    operation: Dict[str, Any], space_group: Any, naming_data: Optional[Dict[str, Any]]
+) -> str:
+    grading = operation.get("Grading", -1 if operation.get("Antiunitary") else 1)
+    action = operation.get("MomentumAffineAction", [None, None])
+    linear = operation.get("MatrixOfRtildeInReciprocalBasis") or action[0]
+    spatial = spatial_matrix_from_momentum(linear, grading)
+    name = point_operation_name(spatial, space_group, naming_data)
+    return name + ("'" if grading == -1 else "")
+
+
+def operation_signature(operation: Dict[str, Any]) -> str:
+    action = operation.get("MomentumAffineAction", [None, None])
+    linear = operation.get("MatrixOfRtildeInReciprocalBasis") or action[0]
+    shift = operation.get("FractionalMomentumShiftKappa") or action[1]
+    grading = operation.get("Grading", -1 if operation.get("Antiunitary") else 1)
+    return matrix_key([linear, shift, grading])
+
+
+def input_operation_names(
+    magnetic: Dict[str, Any], naming_data: Optional[Dict[str, Any]]
+) -> Dict[str, str]:
+    space_group = magnetic.get("ReferenceSpaceGroupNumber")
+    result = {}
+    inputs = magnetic.get("InputOperations", [])
+    for correspondence in magnetic.get("InputToStandardOperations", []):
+        index = correspondence.get("InputIndex", 0) - 1
+        standard = correspondence.get("StandardOperation", {})
+        if 0 <= index < len(inputs):
+            result[operation_signature(inputs[index])] = magnetic_operation_name(
+                standard, space_group, naming_data
+            )
+    return result
+
+
+def translation_name(translation: Any) -> str:
+    vector = [row[0] for row in column_vector(translation)]
+    axes = {(1, 0, 0): "T_x", (0, 1, 0): "T_y", (0, 0, 1): "T_z"}
+    return axes.get(tuple(vector), "T_[" + " ".join(map(str, vector)) + "]")
 
 
 def matrix_lines(matrix: Any, divider_after: Optional[int] = None) -> List[str]:
@@ -139,7 +308,9 @@ def section_rule(title: str) -> str:
     return f"{title}\n{'─' * max(12, len(title))}"
 
 
-def format_parent_generators(record: Dict[str, Any]) -> str:
+def format_parent_generators(
+    record: Dict[str, Any], naming_data: Optional[Dict[str, Any]] = None
+) -> str:
     derivations = record.get("GeneratorDerivation", [])
     if not derivations:
         return "No parent-group generator derivation is stored for this label."
@@ -148,8 +319,13 @@ def format_parent_generators(record: Dict[str, Any]) -> str:
         "Matrices are written in the parent direct-lattice basis.",
         "",
     ]
+    parent_space_group = record.get("ParentSpaceGroup")
     for index, item in enumerate(derivations, start=1):
-        name = item.get("name", f"g{index}")
+        rotation = item.get("seitz_rotation", identity_matrix())
+        if rotation in ("E", "I") and "translation" in item.get("physical_role", ""):
+            name = translation_name(item.get("seitz_translation", [[0], [0], [0]]))
+        else:
+            name = point_operation_name(rotation, parent_space_group, naming_data)
         role = item.get("physical_role", "-")
         output.extend([section_rule(f"{name}   ({role})")])
         output.extend(
@@ -166,7 +342,11 @@ def format_parent_generators(record: Dict[str, Any]) -> str:
     return "\n".join(output)
 
 
-def format_momentum_symmetry(record: Dict[str, Any]) -> str:
+def format_momentum_symmetry(
+    record: Dict[str, Any],
+    magnetic: Optional[Dict[str, Any]] = None,
+    naming_data: Optional[Dict[str, Any]] = None,
+) -> str:
     elements = record.get("GradedReciprocalGroupElements") or []
     if not elements:
         return "No full graded momentum-symmetry elements are stored for this label."
@@ -175,10 +355,15 @@ def format_momentum_symmetry(record: Dict[str, Any]) -> str:
         "Each element acts as k -> A_g k + kappa_g and carries grading s_g.",
         "",
     ]
-    for index, element in enumerate(elements, start=1):
+    names = input_operation_names(magnetic or {}, naming_data)
+    standard_space_group = (magnetic or {}).get("ReferenceSpaceGroupNumber")
+    for element in elements:
         grading = element.get("Grading", -1 if element.get("Antiunitary") else 1)
         character = "antiunitary" if grading == -1 else "unitary"
-        output.append(section_rule(f"Element {index}   ({character}, s_g = {grading:+d})"))
+        name = names.get(operation_signature(element))
+        if name is None:
+            name = magnetic_operation_name(element, standard_space_group, naming_data)
+        output.append(section_rule(f"{name}   ({character}, s_g = {grading:+d})"))
         action = element.get("MomentumAffineAction", [None, None])
         linear = element.get("MatrixOfRtildeInReciprocalBasis") or action[0]
         shift = element.get("FractionalMomentumShiftKappa") or action[1]
@@ -194,7 +379,11 @@ def format_momentum_symmetry(record: Dict[str, Any]) -> str:
     return "\n".join(output)
 
 
-def format_o3_representation(record: Dict[str, Any], o3_record: Dict[str, Any]) -> str:
+def format_o3_representation(
+    record: Dict[str, Any],
+    o3_record: Dict[str, Any],
+    naming_data: Optional[Dict[str, Any]] = None,
+) -> str:
     alternatives = o3_record.get("Alternatives", [])
     canonical = o3_record.get("CanonicalAlternative", 0)
     alternative = alternatives[canonical] if alternatives and canonical < len(alternatives) else {}
@@ -209,8 +398,13 @@ def format_o3_representation(record: Dict[str, Any], o3_record: Dict[str, Any]) 
         "",
     ]
     derivations = record.get("GeneratorDerivation", [])
+    parent_space_group = record.get("ParentSpaceGroup")
     for index, item in enumerate(derivations, start=1):
-        name = item.get("name", f"g{index}")
+        rotation = item.get("seitz_rotation", identity_matrix())
+        if rotation in ("E", "I") and "translation" in item.get("physical_role", ""):
+            name = translation_name(item.get("seitz_translation", [[0], [0], [0]]))
+        else:
+            name = point_operation_name(rotation, parent_space_group, naming_data)
         rho = item.get("rho_O3")
         output.append(section_rule(f"rho({name}) in O(3)"))
         output.extend(labeled_matrix(f"rho({name})", rho))
@@ -224,7 +418,11 @@ def format_o3_representation(record: Dict[str, Any], o3_record: Dict[str, Any]) 
     return "\n".join(output)
 
 
-def format_kmsg(magnetic: Dict[str, Any], ordinary: Dict[str, Any]) -> str:
+def format_kmsg(
+    magnetic: Dict[str, Any],
+    ordinary: Dict[str, Any],
+    naming_data: Optional[Dict[str, Any]] = None,
+) -> str:
     output = [
         f"BNS number: {magnetic.get('BNSNumber', '-')}",
         f"UNI number: {magnetic.get('UNINumber', '-')}",
@@ -245,19 +443,32 @@ def format_kmsg(magnetic: Dict[str, Any], ordinary: Dict[str, Any]) -> str:
     )
     output.extend([f"Convention: {magnetic.get('CoordinateConvention', '-')}", ""])
 
+    input_names = input_operation_names(magnetic, naming_data)
+    standard_space_group = magnetic.get("ReferenceSpaceGroupNumber")
     sections = (
-        ("Input k-MSG operations in the SSG momentum basis", magnetic.get("InputOperations", [])),
-        ("Corresponding operations in the standard BNS setting", magnetic.get("StandardPrimitiveOperations", [])),
+        (
+            "Input k-MSG operations in the SSG momentum basis",
+            magnetic.get("InputOperations", []),
+            input_names,
+        ),
+        (
+            "Corresponding operations in the standard BNS setting",
+            magnetic.get("StandardPrimitiveOperations", []),
+            {},
+        ),
     )
-    for title, operations in sections:
+    for title, operations, stored_names in sections:
         output.extend([section_rule(title), ""])
-        for index, operation in enumerate(operations, start=1):
+        for operation in operations:
             grading = operation.get("Grading", -1 if operation.get("Antiunitary") else 1)
             action = operation.get("MomentumAffineAction", [None, None])
             linear = operation.get("MatrixOfRtildeInReciprocalBasis") or action[0]
             shift = operation.get("FractionalMomentumShiftKappa") or action[1]
             prime = "antiunitary" if grading == -1 else "unitary"
-            output.append(f"Operation {index}   ({prime}, s_g = {grading:+d})")
+            name = stored_names.get(operation_signature(operation))
+            if name is None:
+                name = magnetic_operation_name(operation, standard_space_group, naming_data)
+            output.append(f"{name}   ({prime}, s_g = {grading:+d})")
             output.extend(seitz_lines(linear, column_vector(shift), label="{A_g | kappa_g}"))
             output.append("")
     return "\n".join(output)
@@ -285,6 +496,7 @@ class SSGDatabase:
                 f"Unsupported database schema {schema_version}; "
                 f"expected {EXPECTED_SCHEMA_VERSION}"
             )
+        self._point_operation_names: Optional[Dict[str, Any]] = None
 
     def close(self) -> None:
         if getattr(self, "connection", None) is not None:
@@ -293,6 +505,14 @@ class SSGDatabase:
 
     def metadata(self) -> Dict[str, str]:
         return dict(self.connection.execute("SELECT key, value FROM metadata"))
+
+    def point_operation_names(self) -> Dict[str, Any]:
+        if self._point_operation_names is None:
+            row = self.connection.execute(
+                "SELECT record_zlib FROM point_operation_names WHERE record_id = 1"
+            ).fetchone()
+            self._point_operation_names = unpack_json(row[0]) if row else {}
+        return self._point_operation_names
 
     def search_ssg(self, query: str = "", limit: int = 500) -> List[Dict[str, Any]]:
         query = query.strip()
@@ -624,12 +844,23 @@ class SSGDatabaseGUI:
                 overview_lines.append(f"{key}: {compact(value)}")
         overview_text = "\n".join(overview_lines)
         self._set_text(self.overview_text, overview_text)
-        self._set_text(self.generators_text, format_parent_generators(record))
-        self._set_text(self.elements_text, format_momentum_symmetry(record))
-        self._set_text(self.o3_text, format_o3_representation(record, data["O3Record"]))
+        naming_data = self.database.point_operation_names()
+        self._set_text(
+            self.generators_text, format_parent_generators(record, naming_data)
+        )
+        self._set_text(
+            self.elements_text,
+            format_momentum_symmetry(record, data["MagneticSpaceGroup"], naming_data),
+        )
+        self._set_text(
+            self.o3_text,
+            format_o3_representation(record, data["O3Record"], naming_data),
+        )
         self._set_text(
             self.identification_text,
-            format_kmsg(data["MagneticSpaceGroup"], data["OrdinarySpaceGroup"]),
+            format_kmsg(
+                data["MagneticSpaceGroup"], data["OrdinarySpaceGroup"], naming_data
+            ),
         )
         self._set_text(
             self.raw_text,

@@ -83,16 +83,41 @@ class OfflineDatabaseTest(unittest.TestCase):
     def test_scientific_views_use_readable_matrix_notation(self) -> None:
         data = self.database.get_ssg("N143.10.1")
         record = data["ReciprocalRecord"]
-        generators = format_parent_generators(record)
-        momentum = format_momentum_symmetry(record)
-        o3 = format_o3_representation(record, data["O3Record"])
-        kmsg = format_kmsg(data["MagneticSpaceGroup"], data["OrdinarySpaceGroup"])
+        names = self.database.point_operation_names()
+        generators = format_parent_generators(record, names)
+        momentum = format_momentum_symmetry(
+            record, data["MagneticSpaceGroup"], names
+        )
+        o3 = format_o3_representation(record, data["O3Record"], names)
+        kmsg = format_kmsg(
+            data["MagneticSpaceGroup"], data["OrdinarySpaceGroup"], names
+        )
         self.assertIn("{R_g | t_g} = ⎡", generators)
         self.assertIn("A_g = ⎡", momentum)
         self.assertIn("kappa_g = ⎡", momentum)
-        self.assertIn("rho(g1) = ⎡", o3)
+        self.assertIn("rho(C3+) = ⎡", o3)
         self.assertIn("{A_g | kappa_g} = ⎡", kmsg)
         self.assertNotIn('"MomentumAffineAction"', momentum)
+        self.assertNotIn("Element 1", momentum)
+        self.assertNotIn("Operation 1", kmsg)
+        self.assertIn("C3+", generators)
+
+    def test_physical_operation_names_replace_numbered_placeholders(self) -> None:
+        names = self.database.point_operation_names()
+
+        mirror = self.database.get_ssg("N6.9.19")
+        mirror_parent = format_parent_generators(mirror["ReciprocalRecord"], names)
+        self.assertIn("Σ_y", mirror_parent)
+        self.assertNotIn("g1", mirror_parent)
+
+        antiunitary = self.database.get_ssg("N47.9.43")
+        antiunitary_kmsg = format_kmsg(
+            antiunitary["MagneticSpaceGroup"],
+            antiunitary["OrdinarySpaceGroup"],
+            names,
+        )
+        self.assertIn("Σ_y'", antiunitary_kmsg)
+        self.assertNotIn("Operation 1", antiunitary_kmsg)
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ offers a file chooser when the database is stored elsewhere.
 
 The macOS application bundles Python, Tk, and SQLite. It does not require
 Anaconda, Mathematica, Python, a network connection, or a website. Version
-0.1.1 targets Apple Silicon Macs. The application is ad-hoc signed but not
+0.1.2 targets Apple Silicon Macs. The application is ad-hoc signed but not
 Apple-notarized; on first launch, macOS may require Control-clicking the app and
 choosing **Open**.
 
@@ -57,7 +57,7 @@ From this directory:
 python3 build_offline_database.py --force
 ```
 
-The result is written to `dist/SSGReciprocalOffline-0.1.1.sqlite`.
+The result is written to `dist/SSGReciprocalOffline-0.1.2.sqlite`.
 
 ## Use the GUI
 
@@ -109,17 +109,18 @@ If the database is stored elsewhere:
 
 ```bash
 python3 ssg_database_gui.py \
-  --database /absolute/path/SSGReciprocalOffline-0.1.1.sqlite
+  --database /absolute/path/SSGReciprocalOffline-0.1.2.sqlite
 ```
 
 The GUI supports:
 
 - SSG label and BNS-number search;
 - reciprocal lattice, status, and nonsymmorphicity inspection;
-- parent-group generators in Seitz matrix form;
-- complete SSG momentum symmetry as readable `(A_g, kappa_g, s_g)` matrices;
+- parent-group generators in named Seitz form, such as `C2y`, `C3+`, and `T_z`;
+- complete SSG momentum symmetry as named `(A_g, kappa_g, s_g)` matrices;
 - SSG O(3) representation matrices for every stored generator;
-- corresponding standard k-MSG operations and coordinate transformations;
+- corresponding standard k-MSG operations, including primed antiunitary names such
+  as `Sigma_y'`, and coordinate transformations;
 - BNS-to-SSG reverse lookup;
 - raw JSON inspection for reproducibility.
 
@@ -146,6 +147,6 @@ runtime, so end users do not need Python.
 
 ## Compatibility boundary
 
-Database version `0.1.1` uses SQLite schema version `1`. The file records the
+Database version `0.1.2` uses SQLite schema version `2`. The file records the
 source catalog schemas and source hashes in its metadata. A GUI rejects unknown
 schema versions instead of silently interpreting incompatible data.

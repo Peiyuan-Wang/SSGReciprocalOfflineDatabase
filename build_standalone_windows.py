@@ -14,7 +14,7 @@ import zipfile
 from pathlib import Path
 
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 HERE = Path(__file__).resolve().parent
 
 
