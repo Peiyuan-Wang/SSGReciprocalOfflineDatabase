@@ -20,6 +20,10 @@ module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
 spec.loader.exec_module(module)
 SSGDatabase = module.SSGDatabase
+format_kmsg = module.format_kmsg
+format_momentum_symmetry = module.format_momentum_symmetry
+format_o3_representation = module.format_o3_representation
+format_parent_generators = module.format_parent_generators
 
 
 class OfflineDatabaseTest(unittest.TestCase):
@@ -75,6 +79,20 @@ class OfflineDatabaseTest(unittest.TestCase):
     def test_connection_is_query_only(self) -> None:
         with self.assertRaises(sqlite3.OperationalError):
             self.database.connection.execute("DELETE FROM metadata")
+
+    def test_scientific_views_use_readable_matrix_notation(self) -> None:
+        data = self.database.get_ssg("N143.10.1")
+        record = data["ReciprocalRecord"]
+        generators = format_parent_generators(record)
+        momentum = format_momentum_symmetry(record)
+        o3 = format_o3_representation(record, data["O3Record"])
+        kmsg = format_kmsg(data["MagneticSpaceGroup"], data["OrdinarySpaceGroup"])
+        self.assertIn("{R_g | t_g} = ⎡", generators)
+        self.assertIn("A_g = ⎡", momentum)
+        self.assertIn("kappa_g = ⎡", momentum)
+        self.assertIn("rho(g1) = ⎡", o3)
+        self.assertIn("{A_g | kappa_g} = ⎡", kmsg)
+        self.assertNotIn('"MomentumAffineAction"', momentum)
 
 
 if __name__ == "__main__":

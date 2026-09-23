@@ -46,6 +46,223 @@ def compact(value: Any) -> str:
     return str(value)
 
 
+def scalar_text(value: Any) -> str:
+    if value is None:
+        return "-"
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    return str(value)
+
+
+def column_vector(value: Any) -> List[List[Any]]:
+    if not isinstance(value, list):
+        return [[value]]
+    result = []
+    for item in value:
+        if isinstance(item, list) and len(item) == 1:
+            result.append([item[0]])
+        else:
+            result.append([item])
+    return result
+
+
+def identity_matrix(size: int = 3) -> List[List[int]]:
+    return [[int(row == column) for column in range(size)] for row in range(size)]
+
+
+def matrix_lines(matrix: Any, divider_after: Optional[int] = None) -> List[str]:
+    if matrix in ("E", "I"):
+        matrix = identity_matrix()
+    if not isinstance(matrix, list) or not matrix:
+        return [scalar_text(matrix)]
+    rows = [row if isinstance(row, list) else [row] for row in matrix]
+    width = max(len(row) for row in rows)
+    normalized = [row + [""] * (width - len(row)) for row in rows]
+    texts = [[scalar_text(value) for value in row] for row in normalized]
+    column_widths = [max(len(row[column]) for row in texts) for column in range(width)]
+    output = []
+    for row_index, row in enumerate(texts):
+        entries = []
+        for column, value in enumerate(row):
+            entries.append(value.rjust(column_widths[column]))
+            if divider_after is not None and column + 1 == divider_after:
+                entries.append("│")
+        body = "  ".join(entries)
+        if len(texts) == 1:
+            left, right = "[", "]"
+        elif row_index == 0:
+            left, right = "⎡", "⎤"
+        elif row_index == len(texts) - 1:
+            left, right = "⎣", "⎦"
+        else:
+            left, right = "⎢", "⎥"
+        output.append(f"{left} {body} {right}")
+    return output
+
+
+def labeled_matrix(label: str, matrix: Any) -> List[str]:
+    lines = matrix_lines(matrix)
+    if len(lines) == 1:
+        return [f"{label} = {lines[0]}"]
+    prefix = f"{label} = "
+    return [prefix + lines[0]] + [" " * len(prefix) + line for line in lines[1:]]
+
+
+def seitz_lines(rotation: Any, translation: Any, label: str = "{R_g | t_g}") -> List[str]:
+    if rotation in ("E", "I"):
+        rotation = identity_matrix()
+    vector = [row[0] for row in column_vector(translation)]
+    augmented = []
+    for index, row in enumerate(rotation):
+        augmented.append(list(row) + [vector[index] if index < len(vector) else 0])
+    lines = matrix_lines(augmented, divider_after=len(rotation[0]))
+    prefix = f"{label} = "
+    return [prefix + lines[0]] + [" " * len(prefix) + line for line in lines[1:]]
+
+
+def side_by_side(blocks: Iterable[List[str]], gap: str = "      ") -> List[str]:
+    blocks = list(blocks)
+    if not blocks:
+        return []
+    height = max(len(block) for block in blocks)
+    widths = [max((len(line) for line in block), default=0) for block in blocks]
+    output = []
+    for row in range(height):
+        pieces = []
+        for block, width in zip(blocks, widths):
+            pieces.append((block[row] if row < len(block) else "").ljust(width))
+        output.append(gap.join(pieces).rstrip())
+    return output
+
+
+def section_rule(title: str) -> str:
+    return f"{title}\n{'─' * max(12, len(title))}"
+
+
+def format_parent_generators(record: Dict[str, Any]) -> str:
+    derivations = record.get("GeneratorDerivation", [])
+    if not derivations:
+        return "No parent-group generator derivation is stored for this label."
+    output = [
+        "Parent-space-group generators used to construct the SSG momentum symmetry.",
+        "Matrices are written in the parent direct-lattice basis.",
+        "",
+    ]
+    for index, item in enumerate(derivations, start=1):
+        name = item.get("name", f"g{index}")
+        role = item.get("physical_role", "-")
+        output.extend([section_rule(f"{name}   ({role})")])
+        output.extend(
+            seitz_lines(
+                item.get("seitz_rotation", identity_matrix()),
+                item.get("seitz_translation", [[0], [0], [0]]),
+            )
+        )
+        output.append(f"det rho({name}) = {scalar_text(item.get('det_rho'))}")
+        eta = item.get("EtaP")
+        if eta is not None:
+            output.append(f"eta_{name} = {compact(eta)}")
+        output.append("")
+    return "\n".join(output)
+
+
+def format_momentum_symmetry(record: Dict[str, Any]) -> str:
+    elements = record.get("GradedReciprocalGroupElements") or []
+    if not elements:
+        return "No full graded momentum-symmetry elements are stored for this label."
+    output = [
+        "Complete SSG momentum symmetry modulo reciprocal-lattice translations.",
+        "Each element acts as k -> A_g k + kappa_g and carries grading s_g.",
+        "",
+    ]
+    for index, element in enumerate(elements, start=1):
+        grading = element.get("Grading", -1 if element.get("Antiunitary") else 1)
+        character = "antiunitary" if grading == -1 else "unitary"
+        output.append(section_rule(f"Element {index}   ({character}, s_g = {grading:+d})"))
+        action = element.get("MomentumAffineAction", [None, None])
+        linear = element.get("MatrixOfRtildeInReciprocalBasis") or action[0]
+        shift = element.get("FractionalMomentumShiftKappa") or action[1]
+        output.extend(
+            side_by_side(
+                [
+                    labeled_matrix("A_g", linear),
+                    labeled_matrix("kappa_g", column_vector(shift)),
+                ]
+            )
+        )
+        output.append("")
+    return "\n".join(output)
+
+
+def format_o3_representation(record: Dict[str, Any], o3_record: Dict[str, Any]) -> str:
+    alternatives = o3_record.get("Alternatives", [])
+    canonical = o3_record.get("CanonicalAlternative", 0)
+    alternative = alternatives[canonical] if alternatives and canonical < len(alternatives) else {}
+    output = [
+        f"Parent space group: {o3_record.get('ParentSpaceGroup', '-')}",
+        f"Magnetic order: {o3_record.get('MagneticOrder', '-')}",
+        f"O(3) type: {o3_record.get('O3Type', '-')}",
+        f"Canonical constituents: {' + '.join(alternative.get('Constituents', [])) or '-'}",
+        f"Xiao Appendix-F entry: {o3_record.get('AppendixFDisplay', '-')}",
+        "",
+        "The following matrices are rho(g) in the canonical three-dimensional spin basis.",
+        "",
+    ]
+    derivations = record.get("GeneratorDerivation", [])
+    for index, item in enumerate(derivations, start=1):
+        name = item.get("name", f"g{index}")
+        rho = item.get("rho_O3")
+        output.append(section_rule(f"rho({name}) in O(3)"))
+        output.extend(labeled_matrix(f"rho({name})", rho))
+        output.append(f"det rho({name}) = {scalar_text(item.get('det_rho'))}")
+        proper = item.get("proper_spin_rotation")
+        if proper is not None and proper != rho:
+            output.extend(labeled_matrix(f"R_spin({name})", proper))
+        output.append("")
+    if not derivations:
+        output.append("No generator matrices are stored for this label.")
+    return "\n".join(output)
+
+
+def format_kmsg(magnetic: Dict[str, Any], ordinary: Dict[str, Any]) -> str:
+    output = [
+        f"BNS number: {magnetic.get('BNSNumber', '-')}",
+        f"UNI number: {magnetic.get('UNINumber', '-')}",
+        f"Magnetic type: {magnetic.get('MagneticType', '-')}",
+        f"Identification status: {magnetic.get('Status', '-')}",
+        f"Ungraded k-space group: No. {ordinary.get('InternationalNumber', '-')} "
+        f"{ordinary.get('InternationalSymbol', '-')}",
+        "",
+        "Coordinate transformation to the standard k-MSG setting:",
+    ]
+    output.extend(
+        side_by_side(
+            [
+                labeled_matrix("C", magnetic.get("CoordinateMatrix")),
+                labeled_matrix("theta", column_vector(magnetic.get("OriginShift", []))),
+            ]
+        )
+    )
+    output.extend([f"Convention: {magnetic.get('CoordinateConvention', '-')}", ""])
+
+    sections = (
+        ("Input k-MSG operations in the SSG momentum basis", magnetic.get("InputOperations", [])),
+        ("Corresponding operations in the standard BNS setting", magnetic.get("StandardPrimitiveOperations", [])),
+    )
+    for title, operations in sections:
+        output.extend([section_rule(title), ""])
+        for index, operation in enumerate(operations, start=1):
+            grading = operation.get("Grading", -1 if operation.get("Antiunitary") else 1)
+            action = operation.get("MomentumAffineAction", [None, None])
+            linear = operation.get("MatrixOfRtildeInReciprocalBasis") or action[0]
+            shift = operation.get("FractionalMomentumShiftKappa") or action[1]
+            prime = "antiunitary" if grading == -1 else "unitary"
+            output.append(f"Operation {index}   ({prime}, s_g = {grading:+d})")
+            output.extend(seitz_lines(linear, column_vector(shift), label="{A_g | kappa_g}"))
+            output.append("")
+    return "\n".join(output)
+
+
 class SSGDatabase:
     """Read-only access layer shared by the GUI and command-line checks."""
 
@@ -246,8 +463,10 @@ class SSGDatabaseGUI:
         self.database = database
         self.root = tk.Tk()
         self.root.title("SSG Reciprocal Symmetry Database")
-        self.root.geometry("1260x780")
-        self.root.minsize(960, 620)
+        width = min(1500, max(1180, self.root.winfo_screenwidth() - 100))
+        height = min(850, max(680, self.root.winfo_screenheight() - 120))
+        self.root.geometry(f"{width}x{height}")
+        self.root.minsize(1180, 650)
         self.root.protocol("WM_DELETE_WINDOW", self.close)
 
         style = ttk.Style(self.root)
@@ -321,10 +540,10 @@ class SSGDatabaseGUI:
         self.detail_tabs = ttk.Notebook(right)
         self.detail_tabs.pack(fill="both", expand=True)
         self.overview_text = self._text_tab("Overview")
-        self.generators_text = self._text_tab("Generators")
-        self.elements_text = self._text_tab("Full graded group")
-        self.o3_text = self._text_tab("O(3) representation")
-        self.identification_text = self._text_tab("Standard groups")
+        self.generators_text = self._text_tab("Parent group generator")
+        self.elements_text = self._text_tab("SSG momentum symmetry (A_g, κ_g, s_g)")
+        self.o3_text = self._text_tab("SSG O(3) representation")
+        self.identification_text = self._text_tab("k-MSG")
         self.raw_text = self._text_tab("Raw JSON")
 
     def _text_tab(self, title: str) -> Any:
@@ -397,22 +616,20 @@ class SSGDatabaseGUI:
             "LB convention": record.get("LBConvention"),
             "Reason": record.get("Reason"),
         }
-        overview_text = "\n".join(f"{key}: {compact(value)}" for key, value in overview.items())
+        overview_lines = []
+        for key, value in overview.items():
+            if key == "LB" and isinstance(value, list):
+                overview_lines.extend(labeled_matrix("L_B", value))
+            else:
+                overview_lines.append(f"{key}: {compact(value)}")
+        overview_text = "\n".join(overview_lines)
         self._set_text(self.overview_text, overview_text)
-        self._set_text(self.generators_text, record.get("ReciprocalGenerators", []))
-        self._set_text(
-            self.elements_text,
-            record.get("GradedReciprocalGroupElements")
-            or record.get("ReciprocalMomentumGroupElements")
-            or [],
-        )
-        self._set_text(self.o3_text, data["O3Record"])
+        self._set_text(self.generators_text, format_parent_generators(record))
+        self._set_text(self.elements_text, format_momentum_symmetry(record))
+        self._set_text(self.o3_text, format_o3_representation(record, data["O3Record"]))
         self._set_text(
             self.identification_text,
-            {
-                "OrdinarySpaceGroup": data["OrdinarySpaceGroup"],
-                "MagneticSpaceGroup": data["MagneticSpaceGroup"],
-            },
+            format_kmsg(data["MagneticSpaceGroup"], data["OrdinarySpaceGroup"]),
         )
         self._set_text(
             self.raw_text,

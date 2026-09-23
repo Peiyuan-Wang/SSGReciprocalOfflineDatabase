@@ -22,7 +22,7 @@ from typing import Any, Dict, Iterable, Iterator, Tuple
 
 
 SCHEMA_VERSION = 1
-DATABASE_VERSION = "0.1.0"
+DATABASE_VERSION = "0.1.1"
 APPLICATION_ID = 0x53534752  # "SSGR"
 
 

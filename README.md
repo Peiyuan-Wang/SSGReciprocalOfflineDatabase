@@ -20,7 +20,7 @@ offers a file chooser when the database is stored elsewhere.
 
 The macOS application bundles Python, Tk, and SQLite. It does not require
 Anaconda, Mathematica, Python, a network connection, or a website. Version
-0.1.0 targets Apple Silicon Macs. The application is ad-hoc signed but not
+0.1.1 targets Apple Silicon Macs. The application is ad-hoc signed but not
 Apple-notarized; on first launch, macOS may require Control-clicking the app and
 choosing **Open**.
 
@@ -57,7 +57,7 @@ From this directory:
 python3 build_offline_database.py --force
 ```
 
-The result is written to `dist/SSGReciprocalOffline-0.1.0.sqlite`.
+The result is written to `dist/SSGReciprocalOffline-0.1.1.sqlite`.
 
 ## Use the GUI
 
@@ -109,16 +109,17 @@ If the database is stored elsewhere:
 
 ```bash
 python3 ssg_database_gui.py \
-  --database /absolute/path/SSGReciprocalOffline-0.1.0.sqlite
+  --database /absolute/path/SSGReciprocalOffline-0.1.1.sqlite
 ```
 
 The GUI supports:
 
 - SSG label and BNS-number search;
 - reciprocal lattice, status, and nonsymmorphicity inspection;
-- stored reciprocal generators and full graded group elements;
-- O(3) representation alternatives;
-- corresponding standard ordinary and magnetic group records;
+- parent-group generators in Seitz matrix form;
+- complete SSG momentum symmetry as readable `(A_g, kappa_g, s_g)` matrices;
+- SSG O(3) representation matrices for every stored generator;
+- corresponding standard k-MSG operations and coordinate transformations;
 - BNS-to-SSG reverse lookup;
 - raw JSON inspection for reproducibility.
 
@@ -131,7 +132,7 @@ python3 ssg_database_gui.py --check
 python3 ssg_database_gui.py --gui-smoke
 python3 ssg_database_gui.py --label N143.10.1
 python3 ssg_database_gui.py --bns 156.49
-python3 -m unittest -v test_offline_database.py
+python3 -m unittest -v test_offline_database.py test_gui_paths.py
 ```
 
 ## Runtime requirements
@@ -145,6 +146,6 @@ runtime, so end users do not need Python.
 
 ## Compatibility boundary
 
-Database version `0.1.0` uses SQLite schema version `1`. The file records the
+Database version `0.1.1` uses SQLite schema version `1`. The file records the
 source catalog schemas and source hashes in its metadata. A GUI rejects unknown
 schema versions instead of silently interpreting incompatible data.

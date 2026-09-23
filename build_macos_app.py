@@ -25,11 +25,11 @@ def main() -> None:
     shutil.copy2(HERE / "ssg_database_gui.py", resources / "ssg_database_gui.py")
 
     info = {
-        "CFBundleName": "SSG Reciprocal Database",
-        "CFBundleDisplayName": "SSG Reciprocal Database",
-        "CFBundleIdentifier": "org.ssg.reciprocaldatabase.offline",
-        "CFBundleVersion": "0.1.0",
-        "CFBundleShortVersionString": "0.1.0",
+        "CFBundleName": "SSG Reciprocal Database Preview",
+        "CFBundleDisplayName": "SSG Reciprocal Database Preview",
+        "CFBundleIdentifier": "org.ssg.reciprocaldatabase.offline.dev",
+        "CFBundleVersion": "0.1.1",
+        "CFBundleShortVersionString": "0.1.1",
         "CFBundlePackageType": "APPL",
         "CFBundleExecutable": "SSGReciprocalDatabase",
         "LSMinimumSystemVersion": "11.0",

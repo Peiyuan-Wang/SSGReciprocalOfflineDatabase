@@ -27,7 +27,7 @@ class DatabasePathTest(unittest.TestCase):
             database.parent.mkdir()
             database.touch()
             with mock.patch.object(module, "__file__", str(script)):
-                self.assertEqual(module.default_database_path(), database)
+                self.assertEqual(module.default_database_path(), database.resolve())
 
     def test_frozen_windows_app_uses_database_beside_executable(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -44,7 +44,7 @@ class DatabasePathTest(unittest.TestCase):
                 mock.patch.object(sys, "executable", str(executable)),
                 mock.patch.object(sys, "frozen", True, create=True),
             ):
-                self.assertEqual(module.default_database_path(), database)
+                self.assertEqual(module.default_database_path(), database.resolve())
 
 
 if __name__ == "__main__":
