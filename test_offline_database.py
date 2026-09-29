@@ -97,6 +97,8 @@ class OfflineDatabaseTest(unittest.TestCase):
         self.assertIn("kappa_g = ⎡", momentum)
         self.assertIn("rho(C3+) = ⎡", o3)
         self.assertIn("{A_g | kappa_g} = ⎡", kmsg)
+        self.assertIn("standard MNG setting", kmsg)
+        self.assertNotIn("k-MSG", kmsg)
         self.assertNotIn('"MomentumAffineAction"', momentum)
         self.assertNotIn("Element 1", momentum)
         self.assertNotIn("Operation 1", kmsg)
@@ -110,14 +112,14 @@ class OfflineDatabaseTest(unittest.TestCase):
         self.assertIn("Σ_y", mirror_parent)
         self.assertNotIn("g1", mirror_parent)
 
-        antiunitary = self.database.get_ssg("N47.9.43")
-        antiunitary_kmsg = format_kmsg(
-            antiunitary["MagneticSpaceGroup"],
-            antiunitary["OrdinarySpaceGroup"],
+        magnetic_record = self.database.get_ssg("N47.9.43")
+        magnetic_mng = format_kmsg(
+            magnetic_record["MagneticSpaceGroup"],
+            magnetic_record["OrdinarySpaceGroup"],
             names,
         )
-        self.assertIn("Σ_y'", antiunitary_kmsg)
-        self.assertNotIn("Operation 1", antiunitary_kmsg)
+        self.assertIn("Σ_y'", magnetic_mng)
+        self.assertNotIn("Operation 1", magnetic_mng)
 
 
 if __name__ == "__main__":

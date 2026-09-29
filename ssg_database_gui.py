@@ -195,25 +195,25 @@ def point_operation_name(
 
 
 def spatial_matrix_from_momentum(linear: List[List[int]], grading: int) -> List[List[int]]:
-    return inverse_transpose_3([[grading * value for value in row] for row in linear])
+    return inverse_transpose_3([[(1 - 2 * grading) * value for value in row] for row in linear])
 
 
 def magnetic_operation_name(
     operation: Dict[str, Any], space_group: Any, naming_data: Optional[Dict[str, Any]]
 ) -> str:
-    grading = operation.get("Grading", -1 if operation.get("Antiunitary") else 1)
+    grading = operation.get("Grading", 1 if operation.get("Antiunitary") else 0)
     action = operation.get("MomentumAffineAction", [None, None])
     linear = operation.get("MatrixOfRtildeInReciprocalBasis") or action[0]
     spatial = spatial_matrix_from_momentum(linear, grading)
     name = point_operation_name(spatial, space_group, naming_data)
-    return name + ("'" if grading == -1 else "")
+    return name + ("'" if grading == 1 else "")
 
 
 def operation_signature(operation: Dict[str, Any]) -> str:
     action = operation.get("MomentumAffineAction", [None, None])
     linear = operation.get("MatrixOfRtildeInReciprocalBasis") or action[0]
     shift = operation.get("FractionalMomentumShiftKappa") or action[1]
-    grading = operation.get("Grading", -1 if operation.get("Antiunitary") else 1)
+    grading = operation.get("Grading", 1 if operation.get("Antiunitary") else 0)
     return matrix_key([linear, shift, grading])
 
 
@@ -358,12 +358,12 @@ def format_momentum_symmetry(
     names = input_operation_names(magnetic or {}, naming_data)
     standard_space_group = (magnetic or {}).get("ReferenceSpaceGroupNumber")
     for element in elements:
-        grading = element.get("Grading", -1 if element.get("Antiunitary") else 1)
-        character = "antiunitary" if grading == -1 else "unitary"
+        grading = element.get("Grading", 1 if element.get("Antiunitary") else 0)
+        character = "antiunitary" if grading == 1 else "unitary"
         name = names.get(operation_signature(element))
         if name is None:
             name = magnetic_operation_name(element, standard_space_group, naming_data)
-        output.append(section_rule(f"{name}   ({character}, s_g = {grading:+d})"))
+        output.append(section_rule(f"{name}   ({character}, s_g = {grading})"))
         action = element.get("MomentumAffineAction", [None, None])
         linear = element.get("MatrixOfRtildeInReciprocalBasis") or action[0]
         shift = element.get("FractionalMomentumShiftKappa") or action[1]
@@ -431,7 +431,7 @@ def format_kmsg(
         f"Ungraded k-space group: No. {ordinary.get('InternationalNumber', '-')} "
         f"{ordinary.get('InternationalSymbol', '-')}",
         "",
-        "Coordinate transformation to the standard k-MSG setting:",
+        "Coordinate transformation to the standard MNG setting:",
     ]
     output.extend(
         side_by_side(
@@ -447,7 +447,7 @@ def format_kmsg(
     standard_space_group = magnetic.get("ReferenceSpaceGroupNumber")
     sections = (
         (
-            "Input k-MSG operations in the SSG momentum basis",
+            "Input MNG operations in the SSG momentum basis",
             magnetic.get("InputOperations", []),
             input_names,
         ),
@@ -460,15 +460,15 @@ def format_kmsg(
     for title, operations, stored_names in sections:
         output.extend([section_rule(title), ""])
         for operation in operations:
-            grading = operation.get("Grading", -1 if operation.get("Antiunitary") else 1)
+            grading = operation.get("Grading", 1 if operation.get("Antiunitary") else 0)
             action = operation.get("MomentumAffineAction", [None, None])
             linear = operation.get("MatrixOfRtildeInReciprocalBasis") or action[0]
             shift = operation.get("FractionalMomentumShiftKappa") or action[1]
-            prime = "antiunitary" if grading == -1 else "unitary"
+            prime = "antiunitary" if grading == 1 else "unitary"
             name = stored_names.get(operation_signature(operation))
             if name is None:
                 name = magnetic_operation_name(operation, standard_space_group, naming_data)
-            output.append(f"{name}   ({prime}, s_g = {grading:+d})")
+            output.append(f"{name}   ({prime}, s_g = {grading})")
             output.extend(seitz_lines(linear, column_vector(shift), label="{A_g | kappa_g}"))
             output.append("")
     return "\n".join(output)
@@ -763,7 +763,7 @@ class SSGDatabaseGUI:
         self.generators_text = self._text_tab("Parent group generator")
         self.elements_text = self._text_tab("SSG momentum symmetry (A_g, κ_g, s_g)")
         self.o3_text = self._text_tab("SSG O(3) representation")
-        self.identification_text = self._text_tab("k-MSG")
+        self.identification_text = self._text_tab("MNG")
         self.raw_text = self._text_tab("Raw JSON")
 
     def _text_tab(self, title: str) -> Any:
@@ -870,10 +870,10 @@ class SSGDatabaseGUI:
     def _build_msg_tab(self) -> None:
         ttk = self.ttk
         pane = ttk.Frame(self.notebook, padding=8)
-        self.notebook.add(pane, text="MSG reverse lookup")
+        self.notebook.add(pane, text="MNG reverse lookup")
         search = ttk.Frame(pane)
         search.pack(fill="x", pady=(0, 8))
-        ttk.Label(search, text="MSG BNS number:").pack(side="left")
+        ttk.Label(search, text="MNG BNS number:").pack(side="left")
         self.bns_query = self.tk.StringVar()
         entry = ttk.Entry(search, textvariable=self.bns_query, width=18)
         entry.pack(side="left", padx=8)
@@ -904,13 +904,13 @@ class SSGDatabaseGUI:
         self.msg_tree.delete(*self.msg_tree.get_children())
         summary = result["Summary"]
         if summary is None:
-            self._set_text(self.msg_summary, "No MSG record found for this BNS number.")
+            self._set_text(self.msg_summary, "No MNG record found for this BNS number.")
             return
         display = {
             "BNS number": summary["bns_number"],
             "UNI number": summary["uni_number"],
             "Magnetic type": summary["magnetic_type"],
-            "Nonsymmorphic MSG": bool(summary["nonsymmorphic"]),
+            "Nonsymmorphic MNG": bool(summary["nonsymmorphic"]),
             "Realized by catalogued SSG": bool(summary["realized"]),
             "SSG count": summary["ssg_count"],
             "Example": summary["example_label"],

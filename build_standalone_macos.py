@@ -6,12 +6,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import plistlib
 import shutil
 import subprocess
 from pathlib import Path
 
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 HERE = Path(__file__).resolve().parent
 
 
@@ -71,6 +72,13 @@ def main() -> int:
     environment = os.environ.copy()
     environment["PYINSTALLER_CONFIG_DIR"] = str(build_root / "pyinstaller-cache")
     subprocess.run(command, check=True, cwd=HERE, env=environment)
+    info_path = app / "Contents" / "Info.plist"
+    with info_path.open("rb") as stream:
+        info = plistlib.load(stream)
+    info["CFBundleVersion"] = VERSION
+    info["CFBundleShortVersionString"] = VERSION
+    with info_path.open("wb") as stream:
+        plistlib.dump(info, stream)
     subprocess.run(
         ["codesign", "--force", "--deep", "--sign", "-", str(app)],
         check=True,
