@@ -76,6 +76,13 @@ class OfflineDatabaseTest(unittest.TestCase):
         self.assertIn("N143.10.1", labels)
         self.assertEqual(reverse["Summary"]["ssg_count"], len(labels))
 
+    def test_center_sublattice_notation(self) -> None:
+        record = self.database.get_ssg("N6.9.19")["ReciprocalRecord"]
+        self.assertEqual(record["ZL0"], [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        self.assertIn("ZL0Convention", record)
+        self.assertNotIn("LB", record)
+        self.assertNotIn("LBConvention", record)
+
     def test_connection_is_query_only(self) -> None:
         with self.assertRaises(sqlite3.OperationalError):
             self.database.connection.execute("DELETE FROM metadata")

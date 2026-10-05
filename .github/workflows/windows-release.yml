@@ -1,0 +1,41 @@
+name: Windows release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install builder
+        run: python -m pip install pyinstaller
+      - name: Download matching database
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download v0.1.4 --pattern SSGReciprocalOffline-0.1.4.sqlite --dir dist --repo ${{ github.repository }}
+      - name: Test reader and GUI
+        run: |
+          python -m unittest -v test_offline_database.py test_gui_paths.py
+          python ssg_database_gui.py --check
+          python ssg_database_gui.py --gui-smoke
+      - name: Build Windows viewer
+        run: python build_standalone_windows.py --clean
+      - name: Test packaged reader and GUI
+        shell: pwsh
+        run: |
+          $exe = 'build/standalone-windows/dist/SSGReciprocalDatabase/SSGReciprocalDatabase.exe'
+          foreach ($argument in @('--check', '--gui-smoke')) {
+            $process = Start-Process -FilePath $exe -ArgumentList $argument -Wait -PassThru
+            if ($process.ExitCode -ne 0) { throw "Packaged viewer failed: $argument" }
+          }
+      - name: Upload Windows release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload v0.1.4 release/SSGReciprocalDatabase-Windows-x64-0.1.4.zip release/SHA256SUMS-Windows --repo ${{ github.repository }}

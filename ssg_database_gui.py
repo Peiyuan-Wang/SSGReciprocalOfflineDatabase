@@ -15,7 +15,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 
 EXPECTED_APPLICATION_ID = 0x53534752
-EXPECTED_SCHEMA_VERSION = 2
+EXPECTED_SCHEMA_VERSION = 3
 
 
 def configure_windows_dpi() -> None:
@@ -832,14 +832,14 @@ class SSGDatabaseGUI:
             "Translation projectivity": data["translation_projectivity"],
             "BNS number": data["bns_number"],
             "Magnetic type": data["magnetic_type"],
-            "LB": record.get("LB"),
-            "LB convention": record.get("LBConvention"),
+            "ZL0": record.get("ZL0"),
+            "ZL0 convention": record.get("ZL0Convention"),
             "Reason": record.get("Reason"),
         }
         overview_lines = []
         for key, value in overview.items():
-            if key == "LB" and isinstance(value, list):
-                overview_lines.extend(labeled_matrix("L_B", value))
+            if key == "ZL0" and isinstance(value, list):
+                overview_lines.extend(labeled_matrix("Z_{L_0}", value))
             else:
                 overview_lines.append(f"{key}: {compact(value)}")
         overview_text = "\n".join(overview_lines)

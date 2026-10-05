@@ -1,5 +1,10 @@
 # SSG Reciprocal Symmetry Offline Database
 
+Version 0.1.4 uses `Z_{L_0}` for the spatial sublattice of the unitary
+translation center `Z_{T_0}` and `L_F` for its reciprocal lattice. The
+overview displays its column-HNF basis; raw records use `ZL0` and
+`ZL0Convention`. All 67,475 scientific records are unchanged.
+
 This directory builds and reads a standalone offline database derived from the
 same source records distributed by the `SSGReciprocalDatabase` Mathematica
 paclet. It does not run a web server and the GUI does not recompute scientific
@@ -20,7 +25,7 @@ offers a file chooser when the database is stored elsewhere.
 
 The macOS application bundles Python, Tk, and SQLite. It does not require
 Anaconda, Mathematica, Python, a network connection, or a website. Version
-0.1.3 targets Apple Silicon Macs. The application is ad-hoc signed but not
+0.1.4 targets Apple Silicon Macs. The application is ad-hoc signed but not
 Apple-notarized; on first launch, macOS may require Control-clicking the app and
 choosing **Open**.
 
@@ -57,7 +62,7 @@ From this directory:
 python3 build_offline_database.py --force
 ```
 
-The result is written to `dist/SSGReciprocalOffline-0.1.3.sqlite`.
+The result is written to `dist/SSGReciprocalOffline-0.1.4.sqlite`.
 
 ## Use the GUI
 
@@ -109,7 +114,7 @@ If the database is stored elsewhere:
 
 ```bash
 python3 ssg_database_gui.py \
-  --database /absolute/path/SSGReciprocalOffline-0.1.3.sqlite
+  --database /absolute/path/SSGReciprocalOffline-0.1.4.sqlite
 ```
 
 The GUI supports:
@@ -147,7 +152,7 @@ runtime, so end users do not need Python.
 
 ## Compatibility boundary
 
-Database version `0.1.3` uses SQLite schema version `2`. Grading is stored as
+Database version `0.1.4` uses SQLite schema version `3`. Grading is stored as
 `s_g=0` for unitary and `s_g=1` for antiunitary operations. The file records the
 source catalog schemas and source hashes in its metadata. A GUI rejects unknown
 schema versions instead of silently interpreting incompatible data.

@@ -21,8 +21,8 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, Tuple
 
 
-SCHEMA_VERSION = 2
-DATABASE_VERSION = "0.1.3"
+SCHEMA_VERSION = 3
+DATABASE_VERSION = "0.1.4"
 APPLICATION_ID = 0x53534752  # "SSGR"
 
 
