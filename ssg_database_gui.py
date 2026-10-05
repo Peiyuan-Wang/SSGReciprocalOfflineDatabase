@@ -431,7 +431,7 @@ def format_kmsg(
         f"Ungraded k-space group: No. {ordinary.get('InternationalNumber', '-')} "
         f"{ordinary.get('InternationalSymbol', '-')}",
         "",
-        "Coordinate transformation to the standard MNG setting:",
+        "Coordinate transformation to the standard MG setting:",
     ]
     output.extend(
         side_by_side(
@@ -447,7 +447,7 @@ def format_kmsg(
     standard_space_group = magnetic.get("ReferenceSpaceGroupNumber")
     sections = (
         (
-            "Input MNG operations in the SSG momentum basis",
+            "Input MG operations in the SSG momentum basis",
             magnetic.get("InputOperations", []),
             input_names,
         ),
@@ -763,7 +763,7 @@ class SSGDatabaseGUI:
         self.generators_text = self._text_tab("Parent group generator")
         self.elements_text = self._text_tab("SSG momentum symmetry (A_g, κ_g, s_g)")
         self.o3_text = self._text_tab("SSG O(3) representation")
-        self.identification_text = self._text_tab("MNG")
+        self.identification_text = self._text_tab("MG")
         self.raw_text = self._text_tab("Raw JSON")
 
     def _text_tab(self, title: str) -> Any:
@@ -870,10 +870,10 @@ class SSGDatabaseGUI:
     def _build_msg_tab(self) -> None:
         ttk = self.ttk
         pane = ttk.Frame(self.notebook, padding=8)
-        self.notebook.add(pane, text="MNG reverse lookup")
+        self.notebook.add(pane, text="MG reverse lookup")
         search = ttk.Frame(pane)
         search.pack(fill="x", pady=(0, 8))
-        ttk.Label(search, text="MNG BNS number:").pack(side="left")
+        ttk.Label(search, text="MG BNS number:").pack(side="left")
         self.bns_query = self.tk.StringVar()
         entry = ttk.Entry(search, textvariable=self.bns_query, width=18)
         entry.pack(side="left", padx=8)
@@ -904,13 +904,13 @@ class SSGDatabaseGUI:
         self.msg_tree.delete(*self.msg_tree.get_children())
         summary = result["Summary"]
         if summary is None:
-            self._set_text(self.msg_summary, "No MNG record found for this BNS number.")
+            self._set_text(self.msg_summary, "No MG record found for this BNS number.")
             return
         display = {
             "BNS number": summary["bns_number"],
             "UNI number": summary["uni_number"],
             "Magnetic type": summary["magnetic_type"],
-            "Nonsymmorphic MNG": bool(summary["nonsymmorphic"]),
+            "Nonsymmorphic MG": bool(summary["nonsymmorphic"]),
             "Realized by catalogued SSG": bool(summary["realized"]),
             "SSG count": summary["ssg_count"],
             "Example": summary["example_label"],
@@ -1015,6 +1015,12 @@ def main() -> int:
                         "Notebooks": sum(
                             1 for widget in widgets if widget.winfo_class() == "TNotebook"
                         ),
+                        "Tabs": [
+                            widget.tab(tab, "text")
+                            for widget in widgets
+                            if widget.winfo_class() == "TNotebook"
+                            for tab in widget.tabs()
+                        ],
                     },
                     indent=2,
                     sort_keys=True,

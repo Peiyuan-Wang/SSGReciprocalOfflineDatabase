@@ -1,4 +1,7 @@
-# SSG Reciprocal Symmetry Offline Database
+# MG Database
+
+Version 0.1.5 uses `MG` for reciprocal magnetic groups throughout the viewer.
+Group identifiers and all scientific records are unchanged.
 
 Version 0.1.4 uses `Z_{L_0}` for the spatial sublattice of the unitary
 translation center `Z_{T_0}` and `L_F` for its reciprocal lattice. The
@@ -25,7 +28,7 @@ offers a file chooser when the database is stored elsewhere.
 
 The macOS application bundles Python, Tk, and SQLite. It does not require
 Anaconda, Mathematica, Python, a network connection, or a website. Version
-0.1.4 targets Apple Silicon Macs. The application is ad-hoc signed but not
+0.1.5 targets Apple Silicon Macs. The application is ad-hoc signed but not
 Apple-notarized; on first launch, macOS may require Control-clicking the app and
 choosing **Open**.
 
@@ -62,7 +65,7 @@ From this directory:
 python3 build_offline_database.py --force
 ```
 
-The result is written to `dist/SSGReciprocalOffline-0.1.4.sqlite`.
+The result is written to `dist/SSGReciprocalOffline-0.1.5.sqlite`.
 
 ## Use the GUI
 
@@ -114,7 +117,7 @@ If the database is stored elsewhere:
 
 ```bash
 python3 ssg_database_gui.py \
-  --database /absolute/path/SSGReciprocalOffline-0.1.4.sqlite
+  --database /absolute/path/SSGReciprocalOffline-0.1.5.sqlite
 ```
 
 The GUI supports:
@@ -124,7 +127,7 @@ The GUI supports:
 - parent-group generators in named Seitz form, such as `C2y`, `C3+`, and `T_z`;
 - complete SSG momentum symmetry as named `(A_g, kappa_g, s_g)` matrices;
 - SSG O(3) representation matrices for every stored generator;
-- corresponding standard MNG operations, including primed antiunitary names such
+- corresponding standard MG operations, including primed antiunitary names such
   as `Sigma_y'`, and coordinate transformations;
 - BNS-to-SSG reverse lookup;
 - raw JSON inspection for reproducibility.
@@ -152,7 +155,7 @@ runtime, so end users do not need Python.
 
 ## Compatibility boundary
 
-Database version `0.1.4` uses SQLite schema version `3`. Grading is stored as
+Database version `0.1.5` uses SQLite schema version `3`. Grading is stored as
 `s_g=0` for unitary and `s_g=1` for antiunitary operations. The file records the
 source catalog schemas and source hashes in its metadata. A GUI rejects unknown
 schema versions instead of silently interpreting incompatible data.

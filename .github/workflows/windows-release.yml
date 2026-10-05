@@ -19,7 +19,7 @@ jobs:
       - name: Download matching database
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release download v0.1.4 --pattern SSGReciprocalOffline-0.1.4.sqlite --dir dist --repo ${{ github.repository }}
+        run: gh release download v0.1.5 --pattern SSGReciprocalOffline-0.1.5.sqlite --dir dist --repo ${{ github.repository }}
       - name: Test reader and GUI
         run: |
           python -m unittest -v test_offline_database.py test_gui_paths.py
@@ -38,4 +38,4 @@ jobs:
       - name: Upload Windows release assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload v0.1.4 release/SSGReciprocalDatabase-Windows-x64-0.1.4.zip release/SHA256SUMS-Windows --repo ${{ github.repository }}
+        run: gh release upload v0.1.5 release/SSGReciprocalDatabase-Windows-x64-0.1.5.zip release/SHA256SUMS-Windows --repo ${{ github.repository }}

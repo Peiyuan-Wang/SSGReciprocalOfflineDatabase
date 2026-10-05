@@ -12,7 +12,7 @@ import subprocess
 from pathlib import Path
 
 
-VERSION = "0.1.4"
+VERSION = "0.1.5"
 HERE = Path(__file__).resolve().parent
 
 
