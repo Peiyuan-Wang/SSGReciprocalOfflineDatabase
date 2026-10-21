@@ -5,7 +5,7 @@
 Requires Python 3.9+. The reader uses only the standard library; the source GUI
 also needs Tcl/Tk 8.6+.
 
-Download `SSGReciprocalOffline-0.1.6.sqlite` from the release and put it in `dist/`.
+Download `SSGReciprocalOffline-0.1.7.sqlite` from the release and put it in `dist/`.
 Then run from the repository root:
 
 ```bash
@@ -23,13 +23,13 @@ Set `SSG_SOURCE_DATA` to the paclet's `Data` directory to include that compariso
 
 The Git checkout does not contain the large scientific catalog. Download the
 matching computational paclet, extract it as a ZIP, and locate its `Data/`
-directory. Computational package 0.12.2 and database 0.1.6 contain the same
+directory. Computational package 0.12.2 and database 0.1.7 contain the same
 scientific records as package 0.12.1 and database 0.1.5.
 
 ```bash
 python3 build_offline_database.py \
   --data-root /path/to/SSGReciprocalDatabase-0.12.2/Data \
-  --output dist/SSGReciprocalOffline-0.1.6.sqlite
+  --output dist/SSGReciprocalOffline-0.1.7.sqlite
 ```
 
 The command copies the catalog records into SQLite and builds search indexes.
@@ -38,7 +38,7 @@ Use `--force` only when intentionally replacing an existing build output.
 
 ## Build a Packaged Viewer
 
-First place the 0.1.6 SQLite file in `dist/`. Install PyInstaller in an isolated
+First place the 0.1.7 SQLite file in `dist/`. Install PyInstaller in an isolated
 Python 3.12 environment with Tcl/Tk 8.6+.
 
 On macOS Apple Silicon:

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+from contextlib import closing
 import sqlite3
 import sys
 import tempfile
@@ -30,11 +31,12 @@ class DatabasePathTest(unittest.TestCase):
                     folder = Path(temporary) / name
                     folder.mkdir()
                     path = folder / "SSGReciprocalOffline-test.sqlite"
-                    with sqlite3.connect(path) as connection:
+                    with closing(sqlite3.connect(path)) as connection:
                         connection.execute(f"PRAGMA application_id = {module.EXPECTED_APPLICATION_ID}")
                         connection.execute(f"PRAGMA user_version = {module.EXPECTED_SCHEMA_VERSION}")
                         connection.execute("CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT)")
                         connection.execute("INSERT INTO metadata VALUES ('database_version', 'test')")
+                        connection.commit()
                     database = module.SSGDatabase(path)
                     try:
                         self.assertEqual(database.metadata()["database_version"], "test")

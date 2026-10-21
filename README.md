@@ -7,13 +7,13 @@ magnetic group (MG). The viewer uses the same scientific records as the
 
 ## Download and Open
 
-Download the files from the [v0.1.6 release](https://github.com/Peiyuan-Wang/SSGReciprocalOfflineDatabase/releases/tag/v0.1.6).
+Download the files from the [v0.1.7 release](https://github.com/Peiyuan-Wang/SSGReciprocalOfflineDatabase/releases/tag/v0.1.7).
 The packaged viewers do not require Python, Mathematica, or an internet connection.
 
 ### macOS Apple Silicon
 
-1. Download `SSGReciprocalDatabase-macOS-arm64-0.1.6.zip` and
-   `SSGReciprocalOffline-0.1.6.sqlite`.
+1. Download `SSGReciprocalDatabase-macOS-arm64-0.1.7.zip` and
+   `SSGReciprocalOffline-0.1.7.sqlite`.
 2. Extract the ZIP. Keep `SSG Reciprocal Database.app` and the SQLite file
    in the same folder.
 3. Open the application. A file chooser is available if the database is elsewhere.
@@ -27,7 +27,7 @@ Intel Macs can use the source workflow below.
 
 ### Windows 64-bit
 
-1. Download `SSGReciprocalDatabase-Windows-x64-0.1.6.zip`.
+1. Download `SSGReciprocalDatabase-Windows-x64-0.1.7.zip`.
 2. Extract the complete ZIP.
 3. Open `SSGReciprocalDatabase.exe`.
 
@@ -77,7 +77,7 @@ python3 ssg_database_gui.py
 Use an explicit path when the database is elsewhere:
 
 ~~~bash
-python3 ssg_database_gui.py --database "/path/to/SSGReciprocalOffline-0.1.6.sqlite"
+python3 ssg_database_gui.py --database "/path/to/SSGReciprocalOffline-0.1.7.sqlite"
 ~~~
 
 The command-line reader works without Tk:
