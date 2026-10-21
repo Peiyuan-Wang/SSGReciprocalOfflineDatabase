@@ -22,7 +22,7 @@ from typing import Any, Dict, Iterable, Iterator, Tuple
 
 
 SCHEMA_VERSION = 3
-DATABASE_VERSION = "0.1.5"
+DATABASE_VERSION = "0.1.6"
 APPLICATION_ID = 0x53534752  # "SSGR"
 
 
@@ -362,6 +362,16 @@ def source_paths(data_root: Path) -> Iterable[Path]:
 def build_database(data_root: Path, output: Path, force: bool = False) -> None:
     data_root = data_root.resolve()
     output = output.resolve()
+    required = [data_root / name for name in (
+        "Reciprocal/metadata.json", "O3/metadata.json",
+        "SpaceGroupIdentification.json", "MagneticSpaceGroupIdentification.json",
+        "MagneticSpaceGroupRealizations.json", "SpaceGroupIrepRotationNames.json")]
+    if any(not path.is_file() for path in required):
+        raise FileNotFoundError(
+            "Paclet data are missing. Extract the release .paclet and pass "
+            "--data-root /path/to/SSGReciprocalDatabase-<version>/Data. "
+            "See docs/DEVELOPMENT.md."
+        )
     if output.exists() and not force:
         raise FileExistsError(f"Output already exists: {output}; pass --force to replace it")
     output.parent.mkdir(parents=True, exist_ok=True)

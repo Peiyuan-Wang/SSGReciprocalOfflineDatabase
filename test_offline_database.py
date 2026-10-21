@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sqlite3
 import unittest
 from pathlib import Path
@@ -12,7 +13,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 CATALOG = HERE.parent
-DATA = CATALOG / "SSGReciprocalDatabase" / "Data"
+DATA = Path(os.environ.get("SSG_SOURCE_DATA", CATALOG / "SSGReciprocalDatabase" / "Data"))
 DATABASES = sorted((HERE / "dist").glob("SSGReciprocalOffline-*.sqlite"))
 
 spec = importlib.util.spec_from_file_location("ssg_database_gui", HERE / "ssg_database_gui.py")
@@ -100,10 +101,11 @@ class OfflineDatabaseTest(unittest.TestCase):
             data["MagneticSpaceGroup"], data["OrdinarySpaceGroup"], names
         )
         self.assertIn("{R_g | t_g} = ⎡", generators)
-        self.assertIn("A_g = ⎡", momentum)
-        self.assertIn("kappa_g = ⎡", momentum)
+        self.assertIn("R_tilde_p = ⎡", momentum)
+        self.assertIn("kappa_p = ⎡", momentum)
         self.assertIn("rho(C3+) = ⎡", o3)
-        self.assertIn("{A_g | kappa_g} = ⎡", kmsg)
+        self.assertIn("{R_tilde_p | kappa_p} = ⎡", kmsg)
+        self.assertNotIn("A_g", momentum)
         self.assertIn("standard MG setting", kmsg)
         self.assertIn("Input MG operations", kmsg)
         self.assertNotIn("MNG", kmsg)

@@ -1,161 +1,93 @@
 # MG Database
 
-Version 0.1.5 uses `MG` for reciprocal magnetic groups throughout the viewer.
-Group identifiers and all scientific records are unchanged.
+An offline viewer for the momentum-space symmetry data of 67,475 spin space
+groups (SSGs). Search by SSG label or by the BNS number of a reciprocal
+magnetic group (MG). The viewer uses the same scientific records as the
+[MG Computational Package](https://github.com/Peiyuan-Wang/SSGReciprocalDatabase).
 
-Version 0.1.4 uses `Z_{L_0}` for the spatial sublattice of the unitary
-translation center `Z_{T_0}` and `L_F` for its reciprocal lattice. The
-overview displays its column-HNF basis; raw records use `ZL0` and
-`ZL0Convention`. All 67,475 scientific records are unchanged.
+## Download and Open
 
-This directory builds and reads a standalone offline database derived from the
-same source records distributed by the `SSGReciprocalDatabase` Mathematica
-paclet. It does not run a web server and the GUI does not recompute scientific
-results.
+Download the files from the [v0.1.6 release](https://github.com/Peiyuan-Wang/SSGReciprocalOfflineDatabase/releases/tag/v0.1.6).
+The packaged viewers do not require Python, Mathematica, or an internet connection.
 
-## Downloaded release
+### macOS Apple Silicon
 
-Each release contains these principal assets:
+1. Download `SSGReciprocalDatabase-macOS-arm64-0.1.6.zip` and
+   `SSGReciprocalOffline-0.1.6.sqlite`.
+2. Extract the ZIP. Keep `SSG Reciprocal Database.app` and the SQLite file
+   in the same folder.
+3. Open the application. A file chooser is available if the database is elsewhere.
 
-1. `SSGReciprocalOffline-<version>.sqlite`: the database.
-2. `SSGReciprocalDatabase-macOS-arm64-<version>.zip`: the self-contained GUI.
-3. `SSGReciprocalDatabase-Windows-<architecture>-<version>.zip`: the
-   self-contained Windows GUI.
+The application is ad-hoc signed and has not been notarized by Apple.
+If macOS blocks it, first confirm that the download is from this release.
+For this trusted application, follow Apple's
+[Privacy & Security instructions](https://support.apple.com/en-au/102445)
+and choose **Open Anyway**. The supplied macOS binary targets Apple Silicon;
+Intel Macs can use the source workflow below.
 
-Unzip the application and keep the `.app` and `.sqlite` in the same folder.
-Double-click the application to search the database. The application also
-offers a file chooser when the database is stored elsewhere.
+### Windows 64-bit
 
-The macOS application bundles Python, Tk, and SQLite. It does not require
-Anaconda, Mathematica, Python, a network connection, or a website. Version
-0.1.5 targets Apple Silicon Macs. The application is ad-hoc signed but not
-Apple-notarized; on first launch, macOS may require Control-clicking the app and
-choosing **Open**.
+1. Download `SSGReciprocalDatabase-Windows-x64-0.1.6.zip`.
+2. Extract the complete ZIP.
+3. Open `SSGReciprocalDatabase.exe`.
 
-On Windows, extract the complete Windows ZIP and double-click
-`SSGReciprocalDatabase.exe`. Keep the executable, the `_internal` folder, and
-the `.sqlite` file together. Python, Mathematica, Anaconda, and network access
-are not required.
+The Windows ZIP includes the database. Keep the executable, `_internal`
+folder, and SQLite file together.
 
-Verify downloads from the release directory with:
+## Search and Interpret Results
 
-```bash
-shasum -a 256 -c SHA256SUMS
-```
+In **SSG lookup**, enter a label from Xiao et al., such as `N6.9.19`.
+Select a result to inspect:
 
-## Data model
+| View | Content |
+| --- | --- |
+| Overview | Magnetic order, Bloch lattice, translation projectivity, intrinsic nonsymmorphicity, and MG identifiers. |
+| Parent group generator | Spatial generators and their real-space Seitz operations. |
+| SSG momentum symmetry | Momentum matrices, fractional translations, and unitary/antiunitary grading. |
+| SSG O(3) representation | Spin matrices associated with the stored generators. |
+| MG | Standard MG operations and the coordinate transformation from the SSG momentum basis. |
+| Raw JSON | Full stored records for further calculation. |
 
-The database contains exact compressed copies of:
+In **MG reverse lookup**, enter a BNS number such as `7.24`. The result
+lists the stored SSG realizations, an example, and the MG type.
 
-- all reciprocal-symmetry records for 67,475 Xiao SSG labels;
-- all corresponding O(3) representation records;
-- ordinary space-group identifications;
-- magnetic space-group identifications and BNS reverse lookups;
-- parent-space-group PIR records;
-- source-file SHA-256 hashes for provenance checks.
+The Bloch sublattice is `Z_{L_0}`; `L_F` is its reciprocal lattice.
+Momentum acts as `k -> R_tilde_p k + kappa_p`, modulo integer reciprocal
+vectors. The momentum matrix already includes the antiunitary sign.
+Grading `s_p=0` is unitary and `s_p=1` is antiunitary.
+A prime in an operation name identifies an antiunitary operation.
 
-Normalized SQL columns provide fast searches. They are indexes over the source
-records, not a separate calculation.
+The displayed intrinsic nonsymmorphicity is the result of a common-origin
+test over the complete operation set. The viewer reads precomputed records;
+it does not recalculate the classification. Parameterized SSG families use
+the representative choices described by the computational package.
 
-## Build
+## Run From Source
 
-From this directory:
+Requires Python 3.9+; the GUI also requires Tcl/Tk 8.6+.
 
-```bash
-python3 build_offline_database.py --force
-```
+1. Clone this repository or download its source ZIP.
+2. Download the SQLite file from the release and put it in `dist/`.
+3. Run:
 
-The result is written to `dist/SSGReciprocalOffline-0.1.5.sqlite`.
-
-## Use the GUI
-
-On macOS, double-click `launch_gui.command`, or run:
-
-```bash
+~~~bash
 python3 ssg_database_gui.py
-```
+~~~
 
-A lightweight macOS application wrapper can be built with:
+Use an explicit path when the database is elsewhere:
 
-```bash
-python3 build_macos_app.py
-```
+~~~bash
+python3 ssg_database_gui.py --database "/path/to/SSGReciprocalOffline-0.1.6.sqlite"
+~~~
 
-Keep `SSG Reciprocal Database.app` and the `.sqlite` file in the same folder.
-This development wrapper locates a local Python runtime with Tk 8.6; a fully
-self-contained release build can bundle that runtime later. Its application
-entry point is a native Mach-O launcher, so Finder and LaunchServices can keep
-the GUI process attached to the app bundle.
+The command-line reader works without Tk:
 
-For a self-contained Apple Silicon release, create an isolated build
-environment and install PyInstaller:
-
-```bash
-python3 -m venv .build-venv
-.build-venv/bin/python -m pip install pyinstaller
-.build-venv/bin/python build_standalone_macos.py --clean
-```
-
-The release archive is written to `release/`. The application automatically
-opens a database placed beside the `.app`; otherwise it presents a local file
-chooser.
-
-For a self-contained Windows release, use a 64-bit Python with Tcl/Tk 8.6 or
-newer and install PyInstaller into an isolated build environment:
-
-```powershell
-py -3.12 -m venv .build-venv
-.build-venv\Scripts\python.exe -m pip install pyinstaller
-.build-venv\Scripts\python.exe build_standalone_windows.py --clean
-```
-
-The Windows ZIP and its SHA-256 checksum are written to `release/`. The SQLite
-database is included in the ZIP beside the executable, so the extracted folder
-works entirely offline on a machine without Python.
-
-If the database is stored elsewhere:
-
-```bash
-python3 ssg_database_gui.py \
-  --database /absolute/path/SSGReciprocalOffline-0.1.5.sqlite
-```
-
-The GUI supports:
-
-- SSG label and BNS-number search;
-- reciprocal lattice, status, and nonsymmorphicity inspection;
-- parent-group generators in named Seitz form, such as `C2y`, `C3+`, and `T_z`;
-- complete SSG momentum symmetry as named `(A_g, kappa_g, s_g)` matrices;
-- SSG O(3) representation matrices for every stored generator;
-- corresponding standard MG operations, including primed antiunitary names such
-  as `Sigma_y'`, and coordinate transformations;
-- BNS-to-SSG reverse lookup;
-- raw JSON inspection for reproducibility.
-
-The database is always opened with SQLite `mode=ro` and `query_only=ON`.
-
-## Command-line checks
-
-```bash
+~~~bash
 python3 ssg_database_gui.py --check
-python3 ssg_database_gui.py --gui-smoke
-python3 ssg_database_gui.py --label N143.10.1
-python3 ssg_database_gui.py --bns 156.49
-python3 -m unittest -v test_offline_database.py test_gui_paths.py
-```
+python3 ssg_database_gui.py --bns 7.24
+python3 ssg_database_gui.py --label N6.9.19
+~~~
 
-## Runtime requirements
-
-The reader uses only Python's standard library: `sqlite3`, `zlib`,
-`json`, and `tkinter`. The source launcher requires Tcl/Tk 8.6 or newer; the
-obsolete Tk 8.5 bundled with macOS system Python does not render reliably on
-current macOS releases. No Mathematica installation or network connection is
-required. The release builders package the reader with a current Python and Tk
-runtime, so end users do not need Python.
-
-## Compatibility boundary
-
-Database version `0.1.5` uses SQLite schema version `3`. Grading is stored as
-`s_g=0` for unitary and `s_g=1` for antiunitary operations. The file records the
-source catalog schemas and source hashes in its metadata. A GUI rejects unknown
-schema versions instead of silently interpreting incompatible data.
+See [development and verification](docs/DEVELOPMENT.md) for source tests,
+rebuilding SQLite from the paclet, and packaging the platform viewers.
+[Data sources](docs/SOURCES.md) records the source relationship and citations.

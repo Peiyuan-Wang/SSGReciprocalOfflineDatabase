@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -19,6 +20,29 @@ spec.loader.exec_module(module)
 
 
 class DatabasePathTest(unittest.TestCase):
+    def test_database_path_is_uri_encoded(self) -> None:
+        names = ("normal folder", "review #1", "中文目录")
+        if sys.platform != "win32":
+            names += ("review ?1",)
+        with tempfile.TemporaryDirectory() as temporary:
+            for name in names:
+                with self.subTest(folder=name):
+                    folder = Path(temporary) / name
+                    folder.mkdir()
+                    path = folder / "SSGReciprocalOffline-test.sqlite"
+                    with sqlite3.connect(path) as connection:
+                        connection.execute(f"PRAGMA application_id = {module.EXPECTED_APPLICATION_ID}")
+                        connection.execute(f"PRAGMA user_version = {module.EXPECTED_SCHEMA_VERSION}")
+                        connection.execute("CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT)")
+                        connection.execute("INSERT INTO metadata VALUES ('database_version', 'test')")
+                    database = module.SSGDatabase(path)
+                    try:
+                        self.assertEqual(database.metadata()["database_version"], "test")
+                        with self.assertRaises(sqlite3.OperationalError):
+                            database.connection.execute("DELETE FROM metadata")
+                    finally:
+                        database.close()
+
     def test_source_checkout_uses_dist_database(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

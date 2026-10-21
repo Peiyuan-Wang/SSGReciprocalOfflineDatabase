@@ -352,7 +352,7 @@ def format_momentum_symmetry(
         return "No full graded momentum-symmetry elements are stored for this label."
     output = [
         "Complete SSG momentum symmetry modulo reciprocal-lattice translations.",
-        "Each element acts as k -> A_g k + kappa_g and carries grading s_g.",
+        "Each element acts as k -> R_tilde_p k + kappa_p and carries grading s_p.",
         "",
     ]
     names = input_operation_names(magnetic or {}, naming_data)
@@ -363,15 +363,15 @@ def format_momentum_symmetry(
         name = names.get(operation_signature(element))
         if name is None:
             name = magnetic_operation_name(element, standard_space_group, naming_data)
-        output.append(section_rule(f"{name}   ({character}, s_g = {grading})"))
+        output.append(section_rule(f"{name}   ({character}, s_p = {grading})"))
         action = element.get("MomentumAffineAction", [None, None])
         linear = element.get("MatrixOfRtildeInReciprocalBasis") or action[0]
         shift = element.get("FractionalMomentumShiftKappa") or action[1]
         output.extend(
             side_by_side(
                 [
-                    labeled_matrix("A_g", linear),
-                    labeled_matrix("kappa_g", column_vector(shift)),
+                    labeled_matrix("R_tilde_p", linear),
+                    labeled_matrix("kappa_p", column_vector(shift)),
                 ]
             )
         )
@@ -469,7 +469,7 @@ def format_kmsg(
             if name is None:
                 name = magnetic_operation_name(operation, standard_space_group, naming_data)
             output.append(f"{name}   ({prime}, s_g = {grading})")
-            output.extend(seitz_lines(linear, column_vector(shift), label="{A_g | kappa_g}"))
+            output.extend(seitz_lines(linear, column_vector(shift), label="{R_tilde_p | kappa_p}"))
             output.append("")
     return "\n".join(output)
 
@@ -481,7 +481,7 @@ class SSGDatabase:
         self.path = Path(path).resolve()
         if not self.path.is_file():
             raise FileNotFoundError(f"Database file not found: {self.path}")
-        uri = f"file:{self.path.as_posix()}?mode=ro"
+        uri = self.path.as_uri() + "?mode=ro"
         self.connection = sqlite3.connect(uri, uri=True)
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA query_only = ON")
@@ -761,7 +761,7 @@ class SSGDatabaseGUI:
         self.detail_tabs.pack(fill="both", expand=True)
         self.overview_text = self._text_tab("Overview")
         self.generators_text = self._text_tab("Parent group generator")
-        self.elements_text = self._text_tab("SSG momentum symmetry (A_g, κ_g, s_g)")
+        self.elements_text = self._text_tab("SSG momentum symmetry (R_tilde_p, κ_p, s_p)")
         self.o3_text = self._text_tab("SSG O(3) representation")
         self.identification_text = self._text_tab("MG")
         self.raw_text = self._text_tab("Raw JSON")
